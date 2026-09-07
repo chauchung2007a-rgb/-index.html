@@ -14,7 +14,6 @@
 }
 
 :root{
-  /* Premium Cool Silver-Blue Frosted Glass Palette */
   --sky:#AEBFCA;
   --sky2:#DDE7ED;
   --card:rgba(255,255,255,0.65);
@@ -24,12 +23,9 @@
   --soft:rgba(255,255,255,0.45);
   --border:rgba(255,255,255,0.70);
   --danger:#e35d6a;
-
   --chatGreen:rgba(200,215,225,0.55);
   --chatGreen2:rgba(215,228,235,0.45);
   --chatBubble:rgba(255,255,255,0.75);
-  
-  /* Glass Effect Variables */
   --glass-bg: rgba(255,255,255,0.65);
   --glass-border: rgba(255,255,255,0.75);
   --glass-shadow: 0 8px 30px rgba(55,75,90,0.16);
@@ -45,12 +41,9 @@ body.dark{
   --primary:#5A7A8A;
   --soft:rgba(50,65,75,0.55);
   --border:rgba(255,255,255,0.30);
-
   --chatGreen:rgba(45,60,70,0.65);
   --chatGreen2:rgba(40,55,65,0.55);
   --chatBubble:rgba(50,65,75,0.75);
-  
-  /* Dark Glass Effect */
   --glass-bg: rgba(45,60,70,0.70);
   --glass-border: rgba(255,255,255,0.35);
   --glass-shadow: 0 8px 30px rgba(0,0,0,0.35);
@@ -291,11 +284,18 @@ body.dark .app{
 /* =====================================================
                    05. HOME
 ===================================================== */
+.homeTopRow{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:10px;
+}
+
 .googleSearchBar{
   display:flex;
   align-items:center;
   gap:8px;
-  width:100%;
+  flex:1;
   height:48px;
   border:1px solid var(--glass-border);
   border-radius:24px;
@@ -341,6 +341,31 @@ body.dark .app{
   justify-content:center;
 }
 
+.addNewsButton{
+  width:48px;
+  height:48px;
+  flex-shrink:0;
+  border:0;
+  border-radius:50%;
+  background:linear-gradient(135deg, #3E505D, #5A6E7E);
+  color:white;
+  font-size:28px;
+  font-weight:bold;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow:0 4px 15px rgba(62,80,93,0.35);
+  transition:all 0.3s ease;
+  line-height:1;
+  padding:0;
+  text-align:center;
+}
+
+.addNewsButton:active{
+  transform:scale(0.92);
+  box-shadow:0 2px 8px rgba(62,80,93,0.25);
+}
+
 .newsHeading{
   font-size:19px;
   font-weight:bold;
@@ -353,12 +378,21 @@ body.dark .app{
 }
 
 .newsImage{
-  height:185px;
+  position:relative;
+  width:100%;
+  padding-top:56.25%;
   display:flex;
   justify-content:center;
   align-items:center;
   font-size:72px;
   background:linear-gradient(135deg, #DDE7ED, #C9D7E0);
+}
+
+.newsImage span{
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%, -50%);
 }
 
 .newsBody{
@@ -872,6 +906,9 @@ body.dark .friendSheet{
   flex:1;
   margin:0;
   font-size:25px;
+  display:flex;
+  align-items:center;
+  gap:10px;
 }
 
 .searchMusic{
@@ -1709,21 +1746,37 @@ body.dark .playerSheet{
   -webkit-backdrop-filter:var(--glass-blur);
   border:1px solid var(--glass-border);
   box-shadow:var(--glass-shadow);
+  align-items:center;
+  justify-content:space-around;
+  padding:0 4px;
 }
 
 .nav{
   flex:1;
+  height:100%;
   border:0;
   background:transparent;
   color:var(--muted);
   font-size:11px;
   font-weight:bold;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:2px;
+  padding:0;
+  line-height:1;
 }
 
 .nav span{
   display:block;
   font-size:23px;
-  margin-bottom:2px;
+  line-height:1;
+}
+
+.nav svg{
+  display:block;
+  margin:0 auto;
 }
 
 .nav.active{
@@ -1925,7 +1978,23 @@ body.dark .modalBox{
 }
 
 /* =====================================================
-                   24. RESPONSIVE
+        24. NEW 3D ICONS (HOME & MUSIC - SVG)
+===================================================== */
+.navIcon3d{
+  width:26px;
+  height:26px;
+  display:block;
+  margin:0 auto 2px;
+}
+
+.brandIcon3d{
+  width:80px;
+  height:80px;
+  display:inline-block;
+}
+
+/* =====================================================
+                   25. RESPONSIVE
 ===================================================== */
 @media(max-width:390px){
   .chatHeader{
@@ -1961,12 +2030,13 @@ body.dark .modalBox{
                          01. HOME
 ===================================================== -->
 <section id="home" class="screen active">
-  <div class="topbar">
+  <div class="homeTopRow">
     <div class="googleSearchBar">
       <span class="searchIcon">🔍</span>
       <input id="newsSearch" class="googleSearchInput" placeholder="Search news..." autocomplete="off" oninput="renderNews(); updateNewsClearButton();">
       <button id="newsClearBtn" class="searchClearBtn hidden" type="button" onclick="clearNewsSearch()">✕</button>
     </div>
+    <button class="addNewsButton" title="បង្ហោះព័ត៌មាន" onclick="openNewsPost()">+</button>
   </div>
   <div id="newsList"></div>
   <div id="article" class="article">
@@ -2045,7 +2115,31 @@ body.dark .modalBox{
 ===================================================== -->
 <section id="music" class="screen">
   <div class="musicHeader">
-    <h1>💿 Music</h1>
+    <!-- Music Icon - មានរូបសញ្ញា 🎵 ប៉ុន្តែពណ៌ស៊ីគ្នាជាមួយ App -->
+    <h1>
+      <svg class="navIcon3d" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="cdGradMusic3" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#E0E7EC" />
+            <stop offset="50%" stop-color="#AEBFCA" />
+            <stop offset="100%" stop-color="#7A909E" />
+          </linearGradient>
+          <linearGradient id="noteGradMusic3" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#D5E1E9" />
+            <stop offset="100%" stop-color="#8A9BA8" />
+          </linearGradient>
+        </defs>
+        <!-- CD -->
+        <circle cx="28" cy="32" r="20" fill="url(#cdGradMusic3)" stroke="#5A6E7E" stroke-width="2"/>
+        <circle cx="28" cy="32" r="9" fill="#CBD7DF" stroke="#5A6E7E" stroke-width="1"/>
+        <circle cx="28" cy="32" r="3.5" fill="#5A6E7E" />
+        <!-- រូបសញ្ញា 🎵 ធំជាងមុន - ពណ៌ប្រផេះ-ខៀវ -->
+        <path d="M40 26 L40 48 L50 44 L50 22 Z" fill="url(#noteGradMusic3)" stroke="#5A6E7E" stroke-width="1.5"/>
+        <circle cx="36" cy="48" r="5" fill="url(#noteGradMusic3)" stroke="#5A6E7E" stroke-width="1.5"/>
+        <circle cx="46" cy="44" r="5" fill="url(#noteGradMusic3)" stroke="#5A6E7E" stroke-width="1.5"/>
+      </svg>
+      Music
+    </h1>
     <button class="searchMusic" onclick="toggleMusicSearch()">🔍</button>
   </div>
   <div id="musicSearchPanel" class="musicSearchPanel">
@@ -2370,16 +2464,58 @@ body.dark .modalBox{
                     15. BOTTOM NAVIGATION
 ===================================================== -->
 <nav id="bottomNav" class="bottomNav">
+  <!-- Home Icon - SVG 3D -->
   <button class="nav active" data-page="home" onclick="go('home')">
-    <span>🏠</span>
+    <svg class="navIcon3d" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="roofGradNav3" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#E0E7EC" />
+          <stop offset="50%" stop-color="#AEBFCA" />
+          <stop offset="100%" stop-color="#7A909E" />
+        </linearGradient>
+        <linearGradient id="bodyGradNav3" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#FFFFFF" />
+          <stop offset="100%" stop-color="#CBD7DF" />
+        </linearGradient>
+      </defs>
+      <!-- Roof -->
+      <path d="M32 10 L50 28 L14 28 Z" fill="url(#roofGradNav3)" stroke="#5A6E7E" stroke-width="2" stroke-linejoin="round"/>
+      <!-- Chimney -->
+      <path d="M42 18 L48 22 L48 28 L42 28 Z" fill="#7A909E" stroke="#5A6E7E" stroke-width="1.5"/>
+      <!-- House Body -->
+      <rect x="16" y="28" width="32" height="24" fill="url(#bodyGradNav3)" stroke="#5A6E7E" stroke-width="2"/>
+      <!-- Door -->
+      <path d="M28 52 L28 38 L36 38 L36 52 Z" fill="#5A6E7E" stroke="#3E505D" stroke-width="1.5"/>
+    </svg>
     Home
   </button>
   <button class="nav" data-page="chats" onclick="go('chats')">
     <span>✉️</span>
     Chats
   </button>
+  <!-- Music Icon - មានរូបសញ្ញា 🎵 ធំជាងមុន ពណ៌ស៊ីគ្នាជាមួយ App -->
   <button class="nav" data-page="music" onclick="go('music')">
-    <span>💿</span>
+    <svg class="navIcon3d" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="cdGradNav4" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#E0E7EC" />
+          <stop offset="50%" stop-color="#AEBFCA" />
+          <stop offset="100%" stop-color="#7A909E" />
+        </linearGradient>
+        <linearGradient id="noteGradNav4" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#D5E1E9" />
+          <stop offset="100%" stop-color="#8A9BA8" />
+        </linearGradient>
+      </defs>
+      <!-- CD -->
+      <circle cx="28" cy="32" r="20" fill="url(#cdGradNav4)" stroke="#5A6E7E" stroke-width="2"/>
+      <circle cx="28" cy="32" r="9" fill="#CBD7DF" stroke="#5A6E7E" stroke-width="1"/>
+      <circle cx="28" cy="32" r="3.5" fill="#5A6E7E" />
+      <!-- រូបសញ្ញា 🎵 ធំជាងមុន - ពណ៌ប្រផេះ-ខៀវ -->
+      <path d="M40 26 L40 48 L50 44 L50 22 Z" fill="url(#noteGradNav4)" stroke="#5A6E7E" stroke-width="1.5"/>
+      <circle cx="36" cy="48" r="5" fill="url(#noteGradNav4)" stroke="#5A6E7E" stroke-width="1.5"/>
+      <circle cx="46" cy="44" r="5" fill="url(#noteGradNav4)" stroke="#5A6E7E" stroke-width="1.5"/>
+    </svg>
     Music
   </button>
   <button class="nav" data-page="settings" onclick="go('settings')">
@@ -2399,11 +2535,51 @@ body.dark .modalBox{
 <div id="signupModal" class="modal show" style="align-items:center; background:rgba(55,75,90,0.50); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);">
   <div class="modalBox" style="border-radius:25px; max-width:420px; margin:0 auto; background:linear-gradient(135deg, #DDE7ED, #C9D7E0);">
     <div class="brand">
-      <img src="data:image/png;base64,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" class="brandIcon" alt="Chats Logo">
+      <!-- Logo - មានរូបសញ្ញា 🎵 ធំជាងមុន ពណ៌ស៊ីគ្នាជាមួយ App -->
+      <svg class="brandIcon3d" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="cdGradLogo4" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#E0E7EC" />
+            <stop offset="50%" stop-color="#AEBFCA" />
+            <stop offset="100%" stop-color="#7A909E" />
+          </linearGradient>
+          <linearGradient id="noteGradLogo4" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#D5E1E9" />
+            <stop offset="100%" stop-color="#8A9BA8" />
+          </linearGradient>
+        </defs>
+        <!-- CD -->
+        <circle cx="28" cy="32" r="26" fill="url(#cdGradLogo4)" stroke="#5A6E7E" stroke-width="2"/>
+        <circle cx="28" cy="32" r="12" fill="#CBD7DF" stroke="#5A6E7E" stroke-width="1"/>
+        <circle cx="28" cy="32" r="5" fill="#5A6E7E" />
+        <!-- រូបសញ្ញា 🎵 ធំជាងមុន - ពណ៌ប្រផេះ-ខៀវ -->
+        <path d="M40 24 L40 48 L52 42 L52 18 Z" fill="url(#noteGradLogo4)" stroke="#5A6E7E" stroke-width="1.5"/>
+        <circle cx="36" cy="48" r="6" fill="url(#noteGradLogo4)" stroke="#5A6E7E" stroke-width="1.5"/>
+        <circle cx="48" cy="42" r="6" fill="url(#noteGradLogo4)" stroke="#5A6E7E" stroke-width="1.5"/>
+      </svg>
       <h1>𝑪𝒉𝒂𝒕𝒔</h1>
       <p class="muted">Create your account</p>
     </div>
     <div id="signupContent"></div>
+  </div>
+</div>
+
+<!-- =====================================================
+                   18. NEWS POST MODAL
+===================================================== -->
+<div id="newsPostModal" class="modal">
+  <div class="modalBox">
+    <h2>📰 បង្ហោះព័ត៌មាន</h2>
+    <input id="newsPostTitle" class="input" placeholder="ចំណងជើងព័ត៌មាន">
+    <textarea id="newsPostContent" class="textarea" placeholder="ខ្លឹមសារព័ត៌មាន..."></textarea>
+    <div class="uploadBox">
+      <b>🖼️ រូបភាព (16:9)</b>
+      <p class="muted">ជ្រើសរើសរូបភាពសម្រាប់ព័ត៌មាន</p>
+      <input type="file" accept="image/*" onchange="previewNewsImage(event)">
+      <div id="newsImagePreview" style="margin-top:10px;"></div>
+    </div>
+    <button class="primary" onclick="publishNews()">📤 បង្ហោះ</button>
+    <button class="secondary" onclick="closeModal('newsPostModal')">Close</button>
   </div>
 </div>
 
@@ -2421,6 +2597,7 @@ let minimumAge = 13;
 let ageRestrictionEnabled = false;
 let currentChat = null;
 let currentLanguage = "English";
+let newsImageData = null;
 
 /* =====================================================
                        03. DATA
@@ -2600,7 +2777,7 @@ function renderNews(){
       const index = news.indexOf(item);
       return `
         <article class="card newsCard" onclick="openArticle(${index})">
-          <div class="newsImage">${item.image}</div>
+          <div class="newsImage"><span>${item.image}</span></div>
           <div class="newsBody">
             <div class="newsTitle">${item.title}</div>
             <div class="newsMeta">${item.source} • ${item.time}</div>
@@ -2628,6 +2805,63 @@ function closeArticle(){
   const article = document.getElementById("article");
   article.classList.remove("show");
   document.getElementById("newsList").style.display = "block";
+}
+
+/* =====================================================
+                   11b. NEWS POST
+===================================================== */
+function openNewsPost(){
+  document.getElementById("newsPostModal").classList.add("show");
+  document.getElementById("newsPostTitle").value = "";
+  document.getElementById("newsPostContent").value = "";
+  newsImageData = null;
+  document.getElementById("newsImagePreview").innerHTML = "";
+}
+
+function previewNewsImage(event){
+  const file = event.target.files[0];
+  if(!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e){
+    newsImageData = e.target.result;
+    document.getElementById("newsImagePreview").innerHTML = `
+      <div style="position:relative; width:100%; padding-top:56.25%; border-radius:10px; overflow:hidden; margin-bottom:10px;">
+        <img src="${newsImageData}" style="position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover;">
+      </div>
+      <p class="muted">✓ រូបភាពបានជ្រើសរើស (16:9)</p>
+    `;
+  };
+  reader.readAsDataURL(file);
+}
+
+function publishNews(){
+  const title = document.getElementById("newsPostTitle").value.trim();
+  const content = document.getElementById("newsPostContent").value.trim();
+
+  if(!title){
+    showToast("សូមបញ្ចូលចំណងជើង");
+    return;
+  }
+
+  if(!content){
+    showToast("សូមបញ្ចូលខ្លឹមសារ");
+    return;
+  }
+
+  const newNews = {
+    title: title,
+    source: "User Post",
+    time: "Just now",
+    image: newsImageData ? "📷" : "📰",
+    text: content,
+    customImage: newsImageData || null
+  };
+
+  news.unshift(newNews);
+  renderNews();
+  closeModal("newsPostModal");
+  showToast("📰 ព័ត៌មានបានបង្ហោះ");
 }
 
 /* =====================================================
