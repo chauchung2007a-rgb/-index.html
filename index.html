@@ -2059,6 +2059,108 @@ body.dark .modalBox{
 }
 
 /* =====================================================
+        24b. VIDEO FEED (TIKTOK STYLE)
+===================================================== */
+.videoFeedOverlay{
+  position:absolute;
+  z-index:150;
+  inset:0;
+  display:none;
+  background:#000;
+}
+
+.videoFeedOverlay.show{
+  display:block;
+}
+
+.videoFeedClose{
+  position:absolute;
+  top:14px;
+  left:14px;
+  z-index:10;
+  width:42px;
+  height:42px;
+  border:0;
+  border-radius:50%;
+  background:rgba(255,255,255,0.20);
+  color:white;
+  font-size:20px;
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+
+.videoFeedList{
+  position:absolute;
+  inset:0;
+  overflow-y:scroll;
+  scroll-snap-type:y mandatory;
+  -webkit-overflow-scrolling:touch;
+}
+
+.videoSlide{
+  scroll-snap-align:start;
+  height:100%;
+  width:100%;
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:white;
+  overflow:hidden;
+}
+
+.videoSlideThumb{
+  font-size:90px;
+  opacity:0.9;
+}
+
+.videoSlideInfo{
+  position:absolute;
+  left:16px;
+  bottom:90px;
+  right:80px;
+  color:white;
+  text-shadow:0 2px 8px rgba(0,0,0,0.6);
+}
+
+.videoSlideInfo b{
+  font-size:16px;
+  display:block;
+}
+
+.videoSlideInfo p{
+  margin:6px 0 0;
+  font-size:14px;
+  opacity:0.9;
+}
+
+.videoSlideActions{
+  position:absolute;
+  right:12px;
+  bottom:100px;
+  display:flex;
+  flex-direction:column;
+  gap:22px;
+  align-items:center;
+}
+
+.videoSlideActions button{
+  border:0;
+  background:transparent;
+  color:white;
+  font-size:28px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:3px;
+  text-shadow:0 2px 8px rgba(0,0,0,0.6);
+}
+
+.videoSlideActions button small{
+  font-size:12px;
+}
+
+/* =====================================================
                    25. RESPONSIVE
 ===================================================== */
 @media(max-width:390px){
@@ -2095,8 +2197,8 @@ body.dark .modalBox{
                          01. HOME
 ===================================================== -->
 <section id="home" class="screen active">
-  <div class="homeBrandRow" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-    <img id="homeBrandLogo" src="" alt="Profile" style="width:38px; height:38px; object-fit:cover; border-radius:50%; border:2px solid rgba(255,255,255,0.80); box-shadow:0 3px 10px rgba(55,75,90,0.25);">
+  <div class="homeProfileRow" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+    <img id="homeProfilePic" src="" alt="Profile" onclick="openHomeProfile()" style="width:38px; height:38px; object-fit:cover; border-radius:50%; border:2px solid rgba(255,255,255,0.80); box-shadow:0 3px 10px rgba(55,75,90,0.25); cursor:pointer;">
     <button class="addNewsButton" title="បង្ហោះព័ត៌មាន" onclick="openNewsPost()">+</button>
   </div>
   <div class="homeTopRow">
@@ -2121,8 +2223,7 @@ body.dark .modalBox{
 ===================================================== -->
 <section id="chats" class="screen">
   <div class="topbar">
-    <img id="chatsBrandLogo" src="" alt="Profile" style="width:34px; height:34px; object-fit:cover; border-radius:50%; border:2px solid rgba(255,255,255,0.80); box-shadow:0 3px 10px rgba(55,75,90,0.25);">
-    <h1>✉️ Chats</h1>
+    <img id="chatsProfilePic" src="" alt="Profile" onclick="openVideoFeed()" style="width:34px; height:34px; object-fit:cover; border-radius:50%; border:2px solid rgba(255,255,255,0.80); box-shadow:0 3px 10px rgba(55,75,90,0.25); cursor:pointer;">
   </div>
   <input id="chatSearch" class="input" placeholder="Search chats..." oninput="renderChats()">
   <div id="chatList"></div>
@@ -2184,8 +2285,8 @@ body.dark .modalBox{
 ===================================================== -->
 <section id="music" class="screen">
   <div class="musicHeader">
-    <img id="musicBrandLogo" src="" alt="Profile" style="width:34px; height:34px; object-fit:cover; border-radius:50%; border:2px solid rgba(255,255,255,0.80); box-shadow:0 3px 10px rgba(55,75,90,0.25); margin-right:4px;">
-    <h1>💿 Music</h1>
+    <img id="musicProfilePic" src="" alt="Profile" onclick="openProfile()" style="width:34px; height:34px; object-fit:cover; border-radius:50%; border:2px solid rgba(255,255,255,0.80); box-shadow:0 3px 10px rgba(55,75,90,0.25); margin-right:4px; cursor:pointer;">
+    <div style="flex:1;"></div>
     <button class="searchMusic" onclick="toggleMusicSearch()">🔍</button>
   </div>
   <div id="musicSearchPanel" class="musicSearchPanel">
@@ -2437,20 +2538,32 @@ body.dark .modalBox{
 <div id="profileModal" class="modal">
   <div class="modalBox">
     <h2>👤 Profile</h2>
-    <div style="text-align:center; margin-bottom:14px;">
+    <div style="text-align:center; margin-bottom:14px; cursor:pointer;" onclick="document.getElementById('profileAvatarFileInput').click()">
       <img id="editAvatarPreview" src="" alt="" style="width:90px; height:90px; border-radius:50%; object-fit:cover; border:3px solid rgba(255,255,255,0.80); box-shadow:0 5px 20px rgba(62,80,93,0.35); display:none;">
       <div id="editAvatarPlaceholder" class="profileAvatar">👤</div>
-      <div class="uploadBox" style="margin-top:10px;">
-        <b>🖼️ រូបភាពប្រូហ្វាល</b>
-        <p class="muted">ជ្រើសរើសរូបភាព (អាចប្ដូរពេលណាក៏បាន)</p>
-        <input type="file" accept="image/*" onchange="previewProfileAvatar(event)">
-      </div>
+      <p class="muted" style="margin-top:6px; font-size:13px;">ចុចដើម្បីប្ដូររូបភាព</p>
+      <input id="profileAvatarFileInput" type="file" accept="image/*" style="display:none;" onchange="previewProfileAvatar(event)">
     </div>
     <input id="editName" class="input" placeholder="Name">
     <input id="editEmail" class="input" placeholder="Gmail">
     <button class="primary" onclick="saveProfile()">Save</button>
-    <button class="secondary" onclick="closeModal('profileModal'); openMyNews();">🗂️ ព័ត៌មានដែលបានបង្ហោះ (កែ/លុប)</button>
     <button class="secondary" onclick="closeModal('profileModal')">Close</button>
+  </div>
+</div>
+
+<!-- =====================================================
+                   09b. HOME PROFILE MODAL
+===================================================== -->
+<div id="homeProfileModal" class="modal">
+  <div class="modalBox">
+    <h2>👤 Profile</h2>
+    <div style="text-align:center; margin-bottom:14px;">
+      <div id="homeProfileAvatarBox" class="profileAvatar">👤</div>
+      <h3 id="homeProfileName" style="margin:10px 0 0;">User</h3>
+    </div>
+    <button class="secondary" onclick="closeModal('homeProfileModal'); openMyNews();">🗂️ ព័ត៌មានដែលបានបង្ហោះ (កែ/លុប)</button>
+    <button class="secondary" onclick="closeModal('homeProfileModal'); openProfile();">✏️ កែប្រូហ្វាល</button>
+    <button class="secondary" onclick="closeModal('homeProfileModal')">Close</button>
   </div>
 </div>
 
@@ -2534,6 +2647,14 @@ body.dark .modalBox{
 </div>
 
 <!-- =====================================================
+                    14b. VIDEO FEED OVERLAY
+===================================================== -->
+<div id="videoFeedOverlay" class="videoFeedOverlay">
+  <button class="videoFeedClose" onclick="closeVideoFeed()">✕</button>
+  <div id="videoFeedList" class="videoFeedList"></div>
+</div>
+
+<!-- =====================================================
                     15. BOTTOM NAVIGATION
 ===================================================== -->
 <nav id="bottomNav" class="bottomNav">
@@ -2566,7 +2687,8 @@ body.dark .modalBox{
 <div id="signupModal" class="modal show" style="align-items:center; background:rgba(55,75,90,0.50); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);">
   <div class="modalBox" style="border-radius:25px; max-width:420px; margin:0 auto; background:linear-gradient(135deg, #DDE7ED, #C9D7E0);">
     <div class="brand">
-      <h1>𝑪𝒉𝒂𝒕𝒔</h1>
+      <img id="signupAppLogo" src="" alt="App Logo" class="brandIcon" style="display:none;">
+      <h1 id="signupBrandTitle">𝑪𝒉𝒂𝒕𝒔</h1>
       <p id="signupSubtitle" class="muted">Create your account</p>
     </div>
     <div id="signupContent"></div>
@@ -2671,12 +2793,15 @@ body.dark .modalBox{
 <div id="appCustomModal" class="modal">
   <div class="modalBox">
     <h2>🎨 App Customization</h2>
+    <p class="muted">Logo នេះបង្ហាញនៅខាងលើកន្លែងចុះឈ្មោះ/ចូលគណនីតែប៉ុណ្ណោះ (មិនមែនរូបប្រូហ្វាលទេ)</p>
     <input id="appNameInput" class="input" placeholder="App Name">
     <div class="uploadBox">
       <b>🖼️ App Logo</b>
-      <p class="muted">ប្រើនៅពេលអ្នកប្រើមិនទាន់ដាក់រូបប្រូហ្វាល</p>
       <input type="file" accept="image/*" onchange="previewAppLogo(event)">
       <div id="appLogoPreview" style="margin-top:8px;"></div>
+      <label style="display:block; margin-top:10px; text-align:left;">ទំហំ Logo (px)</label>
+      <input id="appLogoSize" type="range" min="40" max="160" value="80" style="width:100%" oninput="document.getElementById('appLogoSizeLabel').textContent = this.value + 'px'">
+      <p class="muted" id="appLogoSizeLabel" style="text-align:right;">80px</p>
     </div>
     <button class="primary" onclick="saveAppCustomization()">💾 Save</button>
     <button class="secondary" onclick="closeModal('appCustomModal')">Close</button>
@@ -2755,6 +2880,12 @@ const artists = [
   { name:"Young Quá", description:"Artist", photo:"🎤", video:"🎬" },
   { name:"NhoxJet", description:"Artist", photo:"🎧", video:"🎬" },
   { name:"Louch Sokchea", description:"New Artist", photo:"🎙️", video:"🎬" }
+];
+
+const videos = [
+  { creator:"Young Quá", caption:"MV ថ្មីចេញហើយ 🔥", thumb:"🎬", likes:120, comments:8 },
+  { creator:"NhoxJet", caption:"Behind the scenes 🎧", thumb:"🎥", likes:88, comments:5 },
+  { creator:"Louch Sokchea", caption:"Live session 🎤", thumb:"📹", likes:230, comments:19 }
 ];
 
 let newsIdCounter = 1;
@@ -3658,6 +3789,48 @@ function removeFriend(index){
 }
 
 /* =====================================================
+                 12c. VIDEO FEED (TIKTOK STYLE)
+===================================================== */
+function openVideoFeed(){
+  renderVideoFeed();
+  document.getElementById("videoFeedOverlay").classList.add("show");
+}
+
+function closeVideoFeed(){
+  document.getElementById("videoFeedOverlay").classList.remove("show");
+}
+
+function renderVideoFeed(){
+  const colors = [
+    "linear-gradient(160deg,#2A3842,#3A4A55)",
+    "linear-gradient(160deg,#3E505D,#5A6E7E)",
+    "linear-gradient(160deg,#33434E,#4A5A65)"
+  ];
+
+  document.getElementById("videoFeedList").innerHTML = videos.map((v, i) => `
+    <div class="videoSlide" style="background:${colors[i % colors.length]};">
+      <div class="videoSlideThumb">${v.thumb}</div>
+      <div class="videoSlideInfo">
+        <b>@${v.creator}</b>
+        <p>${v.caption}</p>
+      </div>
+      <div class="videoSlideActions">
+        <button onclick="likeVideo(${i}, this)">❤️<small id="videoLikes${i}">${v.likes}</small></button>
+        <button onclick="showToast('💬 Comments')">💬<small>${v.comments}</small></button>
+        <button onclick="showToast('↗️ Share')">↗️<small>Share</small></button>
+      </div>
+    </div>
+  `).join("");
+}
+
+function likeVideo(index, btn){
+  videos[index].likes += 1;
+  const el = document.getElementById("videoLikes" + index);
+  if(el) el.textContent = videos[index].likes;
+  if(btn) btn.classList.add("active");
+}
+
+/* =====================================================
                  13. OPEN CHAT DETAIL
 ===================================================== */
 function openChatDetail(index){
@@ -4319,29 +4492,28 @@ let pendingAvatar = null;
 function updateProfile(){
   document.getElementById("profileName").textContent = user?.name || "User";
   document.getElementById("profileEmail").textContent = user?.email || "";
-  updateBrandLogos();
+  updateProfilePics();
 }
 
-function updateBrandLogos(){
-  const avatar = user?.avatar || localStorage.getItem("chat_app_logo") || null;
-  const targets = ["homeBrandLogo", "chatsBrandLogo", "musicBrandLogo"];
+const DEFAULT_AVATAR_SVG = "data:image/svg+xml;utf8," + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="%238A9BA8"/><circle cx="50" cy="38" r="18" fill="white"/><path d="M50 60c-22 0-34 12-34 28h68c0-16-12-28-34-28z" fill="white"/></svg>'
+);
+
+function updateProfilePics(){
+  const avatar = user?.avatar || DEFAULT_AVATAR_SVG;
+  const targets = ["homeProfilePic", "chatsProfilePic", "musicProfilePic"];
 
   targets.forEach(id => {
     const img = document.getElementById(id);
     if(!img) return;
-    if(avatar){
-      img.src = avatar;
-      img.style.display = "block";
-    }else{
-      img.removeAttribute("src");
-      img.style.display = "none";
-    }
+    img.src = avatar;
+    img.style.display = "block";
   });
 
   const settingsAvatar = document.getElementById("settingsProfileAvatar");
   if(settingsAvatar){
-    settingsAvatar.innerHTML = avatar
-      ? `<img src="${avatar}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`
+    settingsAvatar.innerHTML = user?.avatar
+      ? `<img src="${user.avatar}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`
       : "👤";
   }
 }
@@ -4352,6 +4524,14 @@ function openProfile(){
   pendingAvatar = user?.avatar || null;
   updateAvatarPreview();
   document.getElementById("profileModal").classList.add("show");
+}
+
+function openHomeProfile(){
+  document.getElementById("homeProfileName").textContent = user?.name || "User";
+  document.getElementById("homeProfileAvatarBox").innerHTML = user?.avatar
+    ? `<img src="${user.avatar}" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`
+    : "👤";
+  document.getElementById("homeProfileModal").classList.add("show");
 }
 
 function updateAvatarPreview(){
@@ -4539,6 +4719,9 @@ function openAppCustomization(){
   }
   document.getElementById("appNameInput").value = localStorage.getItem("chat_app_name") || "𝑪𝒉𝒂𝒕𝒔";
   pendingAppLogo = localStorage.getItem("chat_app_logo") || null;
+  const size = localStorage.getItem("chat_app_logo_size") || "80";
+  document.getElementById("appLogoSize").value = size;
+  document.getElementById("appLogoSizeLabel").textContent = size + "px";
   document.getElementById("appLogoPreview").innerHTML = pendingAppLogo
     ? `<img src="${pendingAppLogo}" style="width:60px; height:60px; border-radius:50%; object-fit:cover;">`
     : "";
@@ -4558,21 +4741,37 @@ function previewAppLogo(event){
 
 function saveAppCustomization(){
   const name = document.getElementById("appNameInput").value.trim() || "𝑪𝒉𝒂𝒕𝒔";
+  const size = document.getElementById("appLogoSize").value;
   localStorage.setItem("chat_app_name", name);
+  localStorage.setItem("chat_app_logo_size", size);
   if(pendingAppLogo){
     localStorage.setItem("chat_app_logo", pendingAppLogo);
   }
   applyAppCustomization();
-  updateBrandLogos();
   closeModal("appCustomModal");
   showToast("🎨 App Customization saved");
 }
 
 function applyAppCustomization(){
   const name = localStorage.getItem("chat_app_name") || "𝑪𝒉𝒂𝒕𝒔";
+  const logo = localStorage.getItem("chat_app_logo") || null;
+  const size = localStorage.getItem("chat_app_logo_size") || "80";
+
   document.title = name;
-  const brandTitle = document.querySelector("#signupModal .brand h1");
+  const brandTitle = document.getElementById("signupBrandTitle");
   if(brandTitle) brandTitle.textContent = name;
+
+  const logoImg = document.getElementById("signupAppLogo");
+  if(logoImg){
+    if(logo){
+      logoImg.src = logo;
+      logoImg.style.display = "block";
+      logoImg.style.width = size + "px";
+      logoImg.style.height = size + "px";
+    }else{
+      logoImg.style.display = "none";
+    }
+  }
 }
 
 /* =====================================================
