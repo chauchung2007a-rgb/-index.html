@@ -290,6 +290,21 @@ body.dark .app{
   padding:0;
 }
 
+.eyeToggleBtn{
+  flex-shrink:0;
+  width:32px;
+  height:32px;
+  border:0;
+  border-radius:50%;
+  background:transparent;
+  color:var(--muted);
+  font-size:17px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:0;
+}
+
 /* =====================================================
                    05. HOME
 ===================================================== */
@@ -2531,6 +2546,7 @@ body.dark .modalBox{
         <button class="adminButton" onclick="openAdmin('age')">🎂<br>Age</button>
         <button class="adminButton" onclick="openAdmin('fonts')">🔤<br>Fonts</button>
         <button class="adminButton" onclick="openAdmin('notifications')">🔔<br>Notifications</button>
+        <button class="adminButton" onclick="openAdmin('otp')">🔐<br>OTP Customers</button>
       </div>
     </div>
   </div>
@@ -3078,25 +3094,9 @@ function saveAccounts(accounts){
   localStorage.setItem("chat_accounts", JSON.stringify(accounts));
 }
 
-function getPendingSignup(){
-  try{
-    return JSON.parse(localStorage.getItem("chat_pending_signup") || "null");
-  }catch(error){
-    return null;
-  }
-}
-
-function savePendingSignup(pending){
-  if(pending){
-    localStorage.setItem("chat_pending_signup", JSON.stringify(pending));
-  }else{
-    localStorage.removeItem("chat_pending_signup");
-  }
-}
-
 let authMode = getAccounts().length ? "login" : "signup";
-let otpCountdownInterval = null;
 let pendingOwnerLogin = null;
+let signupState = { step: 1, email: "" };
 
 function switchAuthMode(mode){
   if(mode === authMode) return;
@@ -3114,11 +3114,6 @@ function authTabsHTML(isLogin){
 }
 
 function renderSignup(){
-  if(otpCountdownInterval){
-    clearInterval(otpCountdownInterval);
-    otpCountdownInterval = null;
-  }
-
   const subtitle = document.getElementById("signupSubtitle");
   if(subtitle){
     subtitle.textContent = authMode === "login" ? "Log in to your account" : "Create your account";
@@ -3142,254 +3137,262 @@ function renderSignup(){
     return;
   }
 
-  const pending = getPendingSignup();
-  const step = (pending && pending.step) ? pending.step : 1;
-
-  if(step === 1){
+  if(signupState.step === 1){
     document.getElementById("signupContent").innerHTML = `
       ${authTabsHTML(false)}
-      <p class="muted" style="margin-bottom:10px;">ជំហានទី ១/៣ — បញ្ចូល Gmail</p>
       <div class="signupField">
         <span class="signupFieldIcon">📧</span>
-        <input id="signupEmail" class="input signupInput" placeholder="Gmail" autocomplete="off">
+        <input id="signupEmail" class="input signupInput" placeholder="Gmail" autocomplete="off" value="${signupState.email || ""}">
       </div>
-      <button class="primary" onclick="submitSignupEmail()">បន្ទាប់</button>
+      <button class="primary" onclick="goToSignupStep2()">បន្ទាប់</button>
     `;
-  }else if(step === 2){
-    renderOtpStep(pending);
-  }else if(step === 3){
-    document.getElementById("signupContent").innerHTML = `
-      ${authTabsHTML(false)}
-      <p class="muted" style="margin-bottom:10px;">ជំហានទី ៣/៣ — កំណត់ Password (${pending.email})</p>
-      <div class="signupField">
-        <span class="signupFieldIcon">🔒</span>
-        <input id="signupPassword" class="input signupInput" type="password" placeholder="Password" autocomplete="off">
-      </div>
-      <div class="uploadBox" style="text-align:left; margin-bottom:10px;">
-        <small class="muted">Password ត្រូវមានអក្សរតូច អក្សរធំ លេខ និងសញ្ញាពិសេសយ៉ាងហោចណាស់ ១ ក្នុងចំណោម៖<br>
-        [ ] &#123; &#125; # % ^ * + = _ \\ | ~ &lt; &gt; $ ¥ € • . , ? ! ' - / : ; ( ) ₫ &amp; @ "</small>
-      </div>
-      <button class="primary" onclick="finishSignup()">បញ្ចប់ការចុះឈ្មោះ</button>
-    `;
-  }
-}
-
-/* =====================================================
-                  04b. OTP CUSTOMER RELAY
-===================================================== */
-function ensureOtpCustomerChat(){
-  let chat = chats.find(c => c.name === "OTP Customer");
-  if(!chat){
-    chat = { name: "OTP Customer", message: "", avatar: "🔐", status: "OTP requests" };
-    chats.unshift(chat);
-  }
-  return chat;
-}
-
-function postOtpRequestMessage(email, label){
-  const chat = ensureOtpCustomerChat();
-  chat.message = label || email;
-  const saved = JSON.parse(localStorage.getItem("chat_messages") || "{}");
-  if(!saved["OTP Customer"]) saved["OTP Customer"] = [];
-  saved["OTP Customer"].push({ text: label || email, mine: false });
-  localStorage.setItem("chat_messages", JSON.stringify(saved));
-  if(document.getElementById("chatList")) renderChats();
-}
-
-function submitSignupEmail(){
-  const email = document.getElementById("signupEmail").value.trim();
-
-  if(!email || !email.includes("@") || !email.includes(".")){
-    showToast("សូមបញ្ចូល Gmail ត្រឹមត្រូវ");
     return;
   }
 
-  if(email.toLowerCase() === OWNER_EMAIL.toLowerCase()){
-    showToast("នេះជា Gmail ម្ចាស់ App សូម Login ដោយផ្ទាល់ (មិនចាំបាច់ចុះឈ្មោះ)");
-    switchAuthMode("login");
-    document.getElementById("loginEmail").value = email;
+  if(signupState.step === 2){
+    document.getElementById("signupContent").innerHTML = `
+      ${authTabsHTML(false)}
+      <p class="muted" style="margin-bottom:10px;">Gmail: <b>${signupState.email}</b></p>
+      <div class="signupField">
+        <span class="signupFieldIcon">🔒</span>
+        <input id="signupPassword" class="input signupInput" type="password" placeholder="Password" autocomplete="off">
+        <button type="button" class="eyeToggleBtn" onclick="togglePasswordVisibility('signupPassword', this)">👁️</button>
+      </div>
+      <div class="signupField">
+        <span class="signupFieldIcon">🔒</span>
+        <input id="signupConfirmPassword" class="input signupInput" type="password" placeholder="Confirm Password" autocomplete="off">
+        <button type="button" class="eyeToggleBtn" onclick="togglePasswordVisibility('signupConfirmPassword', this)">👁️</button>
+      </div>
+      <button class="primary" onclick="goToSignupStep3()">បន្ទាប់</button>
+      <button class="secondary" onclick="goToSignupStep1()">↩️ ត្រឡប់</button>
+    `;
+    return;
+  }
+
+  if(signupState.step === 3){
+    document.getElementById("signupContent").innerHTML = `
+      ${authTabsHTML(false)}
+      <p class="muted" style="text-align:center; margin-top:10px; font-weight:bold;">Verify Email</p>
+      <p class="muted" style="text-align:center;">Gmail: <b>${signupState.email}</b></p>
+      <p class="muted" style="text-align:center; font-size:13px;">OTP has been sent to your email</p>
+      <div id="otpStep3Box" style="margin-top:14px;"></div>
+      <button class="secondary" onclick="goBackToPasswordStep()">↩️ ត្រឡប់</button>
+    `;
+    startOtpWatch();
+    renderOtpStep3Content();
+    return;
+  }
+}
+
+function togglePasswordVisibility(inputId, btn){
+  const input = document.getElementById(inputId);
+  if(!input) return;
+  if(input.type === "password"){
+    input.type = "text";
+    btn.textContent = "🙈";
+  }else{
+    input.type = "password";
+    btn.textContent = "👁️";
+  }
+}
+
+function goToSignupStep1(){
+  signupState.step = 1;
+  renderSignup();
+}
+
+function goToSignupStep2(){
+  const email = document.getElementById("signupEmail").value.trim();
+
+  if(!email){
+    showToast("Email is required");
+    return;
+  }
+
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if(!emailPattern.test(email)){
+    showToast("Please enter a valid email");
     return;
   }
 
   const accounts = getAccounts();
-  if(accounts.some(a => a.email.toLowerCase() === email.toLowerCase())){
-    showToast("គណនីនេះមានរួចហើយ សូម Login");
-    switchAuthMode("login");
-    document.getElementById("loginEmail").value = email;
+  if(accounts.some(a => a.email.toLowerCase() === email.toLowerCase()) || email.toLowerCase() === OWNER_EMAIL.toLowerCase()){
+    showToast("This email is already registered");
     return;
   }
 
-  const existingPending = getPendingSignup();
-  if(existingPending && existingPending.email.toLowerCase() === email.toLowerCase() && existingPending.lockUntil && Date.now() < existingPending.lockUntil){
-    showToast("Gmail នេះកំពុងត្រូវបានទប់ស្កាត់ សូមព្យាយាមម្ដងទៀតក្រោយ");
+  signupState.email = email;
+  signupState.step = 2;
+  renderSignup();
+
+  if(window.otpCreateCustomerDoc){
+    window.otpCreateCustomerDoc(email).then(function(docId){
+      sessionStorage.setItem("otp_doc_id", docId);
+    }).catch(function(){
+      showToast("⚠️ Could not reach OTP service");
+    });
+  }
+}
+
+function goToSignupStep3(){
+  const password = document.getElementById("signupPassword").value;
+  const confirmPassword = document.getElementById("signupConfirmPassword").value;
+
+  const passwordError = validatePassword(password);
+  if(passwordError){
+    showToast(passwordError);
     return;
   }
 
-  const pending = {
-    email: email,
-    otp: null,
-    otpSetAt: null,
-    expiresAt: Date.now() + 5 * 60000,
-    attempts: 0,
-    resends: 1,
-    lockUntil: null,
-    step: 2
-  };
-  savePendingSignup(pending);
-  postOtpRequestMessage(email, "🔐 OTP request: " + email);
-  showToast("✅ បានផ្ញើសំណើ OTP");
+  if(!confirmPassword){
+    showToast("Confirm Password is required");
+    return;
+  }
+
+  if(password !== confirmPassword){
+    showToast("Passwords do not match");
+    return;
+  }
+
+  signupState.password = password;
+  signupState.step = 3;
   renderSignup();
 }
 
-function renderOtpStep(pending){
-  const tabs = authTabsHTML(false);
+/* =====================================================
+                  06b. STEP 3 — EMAIL OTP (CUSTOMER SIDE)
+===================================================== */
+let otpUnsubscribe = null;
+let otpCurrentDocData = null;
 
-  if(pending.lockUntil && Date.now() < pending.lockUntil){
-    const remainMs = pending.lockUntil - Date.now();
-    document.getElementById("signupContent").innerHTML = `
-      ${tabs}
-      <p class="muted">Gmail: <b>${pending.email}</b></p>
-      <div class="card" style="text-align:center;">
-        <b>🔒 អ្នកបានព្យាយាមខុសច្រើនដងពេក</b>
-        <p class="muted" id="otpLockTimer" style="margin-top:8px;"></p>
-      </div>
-      <button class="secondary" onclick="cancelSignup()">↩️ ត្រឡប់ក្រោយ</button>
+function startOtpWatch(){
+  if(otpUnsubscribe){
+    otpUnsubscribe();
+    otpUnsubscribe = null;
+  }
+
+  const docId = sessionStorage.getItem("otp_doc_id");
+  if(!docId || !window.otpWatchDoc) return;
+
+  otpUnsubscribe = window.otpWatchDoc(docId, function(data){
+    otpCurrentDocData = data;
+    renderOtpStep3Content();
+  });
+}
+
+function renderOtpStep3Content(){
+  const box = document.getElementById("otpStep3Box");
+  if(!box) return;
+
+  const data = otpCurrentDocData;
+
+  if(!data){
+    box.innerHTML = `<p class="muted" style="text-align:center;">⏳ Connecting...</p>`;
+    return;
+  }
+
+  if(data.status === "waiting"){
+    box.innerHTML = `
+      <p class="muted" style="text-align:center;">⏳ Waiting for the OTP code sent to your Gmail...</p>
+      <p class="muted" style="text-align:center; font-size:12px;">(The app owner sends this from their own Gmail — this can take a moment.)</p>
     `;
-    updateLockCountdown(pending.lockUntil);
-    otpCountdownInterval = setInterval(() => updateLockCountdown(pending.lockUntil), 1000);
     return;
   }
 
-  document.getElementById("signupContent").innerHTML = `
-    ${tabs}
-    <p class="muted" style="margin-bottom:6px;">ជំហានទី ២/៣ — Gmail: <b>${pending.email}</b></p>
-    <p class="muted" style="margin-bottom:10px;">ម្ចាស់ App នឹងផ្ញើលេខ OTP ៦ ខ្ទង់ទៅ Gmail របស់អ្នក។ សូមរង់ចាំ ហើយបញ្ចូលលេខនោះខាងក្រោម។</p>
-    <div class="signupField">
-      <span class="signupFieldIcon">🔢</span>
-      <input id="otpInput" class="input signupInput" placeholder="OTP 6 ខ្ទង់" maxlength="6" inputmode="numeric" autocomplete="off">
-    </div>
-    <p class="muted" id="otpCountdown" style="margin-bottom:10px;"></p>
-    <button class="primary" onclick="verifySignupOtp()">បញ្ជាក់</button>
-    <button class="secondary" onclick="resendSignupOtp()">🔄 ស្នើសុំម្ដងទៀត (${3 - pending.resends} ដងនៅសល់)</button>
-    <button class="secondary" onclick="cancelSignup()">↩️ ត្រឡប់ក្រោយ</button>
-  `;
-
-  updateOtpCountdown(pending.expiresAt);
-  otpCountdownInterval = setInterval(() => updateOtpCountdown(pending.expiresAt), 1000);
+  if(data.status === "otp_sent"){
+    box.innerHTML = `
+      <div class="signupField">
+        <span class="signupFieldIcon">🔢</span>
+        <input id="step3OtpInput" class="input signupInput" placeholder="OTP 6 digits" maxlength="6" inputmode="numeric" autocomplete="off">
+      </div>
+      <button class="primary" onclick="verifyStep3Otp()">បញ្ជាក់</button>
+      <button class="secondary" onclick="resendStep3Otp()">🔄 Resend OTP</button>
+    `;
+    return;
+  }
 }
 
-function formatDuration(ms){
-  if(ms < 0) ms = 0;
-  const totalSeconds = Math.floor(ms / 1000);
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  const s = totalSeconds % 60;
-  if(h > 0) return `${h}ម៉ោង ${m}នាទី`;
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
+function verifyStep3Otp(){
+  const data = otpCurrentDocData;
+  const docId = sessionStorage.getItem("otp_doc_id");
+  const input = document.getElementById("step3OtpInput");
 
-function updateOtpCountdown(expiresAt){
-  const el = document.getElementById("otpCountdown");
-  if(!el){
-    clearInterval(otpCountdownInterval);
-    return;
-  }
-  const remain = expiresAt - Date.now();
-  if(remain <= 0){
-    el.textContent = "⏱️ OTP ផុតកំណត់ សូមស្នើសុំម្ដងទៀត";
-    clearInterval(otpCountdownInterval);
-    return;
-  }
-  el.textContent = "⏱️ នៅសល់ពេល " + formatDuration(remain);
-}
-
-function updateLockCountdown(lockUntil){
-  const el = document.getElementById("otpLockTimer");
-  if(!el){
-    clearInterval(otpCountdownInterval);
-    return;
-  }
-  const remain = lockUntil - Date.now();
-  if(remain <= 0){
-    clearInterval(otpCountdownInterval);
-    savePendingSignup(null);
-    renderSignup();
-    return;
-  }
-  el.textContent = "សូមរង់ចាំ " + formatDuration(remain);
-}
-
-function verifySignupOtp(){
-  const pending = getPendingSignup();
-  if(!pending){ renderSignup(); return; }
-
-  if(pending.lockUntil && Date.now() < pending.lockUntil){
-    showToast("សូមរង់ចាំរហូតដល់ពេលកំណត់ចប់");
+  if(!data || !data.otp || !input){
+    showToast("OTP not ready yet");
     return;
   }
 
-  const entered = document.getElementById("otpInput").value.trim();
+  const attemptsKey = "otp_attempts_" + docId;
+  let attempts = parseInt(sessionStorage.getItem(attemptsKey) || "0", 10);
 
-  if(!pending.otp){
-    showToast("ម្ចាស់ App មិនទាន់កំណត់លេខ OTP ទេ សូមរង់ចាំ");
+  if(attempts >= 3){
+    showToast("Too many attempts. Please request a new OTP.");
     return;
   }
 
-  if(Date.now() > pending.expiresAt){
-    showToast("OTP ផុតកំណត់ សូមស្នើសុំម្ដងទៀត");
+  const expiresMs = (data.expiresAt && data.expiresAt.toMillis) ? data.expiresAt.toMillis() : 0;
+  if(Date.now() > expiresMs){
+    showToast("OTP has expired. Please request a new OTP.");
     return;
   }
 
-  if(entered !== pending.otp){
-    pending.attempts = (pending.attempts || 0) + 1;
-    if(pending.attempts >= 3){
-      pending.lockUntil = Date.now() + 2 * 60 * 60000;
-      savePendingSignup(pending);
-      showToast("🔒 បញ្ចូលខុសច្រើនដងពេក សូមរង់ចាំ 2 ម៉ោង");
-      renderSignup();
-      return;
-    }
-    savePendingSignup(pending);
-    showToast("❌ OTP មិនត្រឹមត្រូវ (នៅសល់ " + (3 - pending.attempts) + " ដង)");
+  const entered = input.value.trim();
+
+  if(entered !== data.otp){
+    attempts += 1;
+    sessionStorage.setItem(attemptsKey, String(attempts));
+    showToast("Invalid OTP. Please try again.");
     return;
   }
 
-  pending.step = 3;
-  savePendingSignup(pending);
-  showToast("✅ OTP ត្រឹមត្រូវ");
+  // Correct — finish registration using the existing, unchanged local account system
+  const accounts = getAccounts();
+  accounts.push({ email: signupState.email, password: signupState.password });
+  saveAccounts(accounts);
+
+  if(otpUnsubscribe){
+    otpUnsubscribe();
+    otpUnsubscribe = null;
+  }
+  sessionStorage.removeItem("otp_doc_id");
+  sessionStorage.removeItem(attemptsKey);
+
+  showToast("✅ Registration Successful");
+  signupState = { step: 1, email: "" };
   renderSignup();
 }
 
-function resendSignupOtp(){
-  const pending = getPendingSignup();
-  if(!pending){ renderSignup(); return; }
+function resendStep3Otp(){
+  if(!window.otpCreateCustomerDoc) return;
 
-  if(pending.lockUntil && Date.now() < pending.lockUntil){
-    showToast("សូមរង់ចាំរហូតដល់ពេលកំណត់ចប់");
-    return;
+  if(otpUnsubscribe){
+    otpUnsubscribe();
+    otpUnsubscribe = null;
   }
 
-  if(pending.resends >= 3){
-    pending.lockUntil = Date.now() + 2 * 60 * 60000;
-    savePendingSignup(pending);
-    showToast("🔒 បានស្នើសុំច្រើនដងពេក សូមរង់ចាំ 2 ម៉ោង");
-    renderSignup();
-    return;
+  const oldDocId = sessionStorage.getItem("otp_doc_id");
+  if(oldDocId){
+    sessionStorage.removeItem("otp_attempts_" + oldDocId);
   }
 
-  pending.resends += 1;
-  pending.otp = null;
-  pending.attempts = 0;
-  pending.expiresAt = Date.now() + 5 * 60000;
-  savePendingSignup(pending);
-  postOtpRequestMessage(pending.email, "🔐 OTP request again: " + pending.email);
-  showToast("🔄 បានស្នើសុំ OTP ម្ដងទៀត");
-  renderSignup();
+  window.otpCreateCustomerDoc(signupState.email).then(function(docId){
+    sessionStorage.setItem("otp_doc_id", docId);
+    otpCurrentDocData = null;
+    renderOtpStep3Content();
+    startOtpWatch();
+    showToast("🔄 A new OTP request was sent");
+  }).catch(function(){
+    showToast("⚠️ Could not reach OTP service");
+  });
 }
 
-function cancelSignup(){
-  savePendingSignup(null);
-  switchAuthMode("signup");
+function goBackToPasswordStep(){
+  if(otpUnsubscribe){
+    otpUnsubscribe();
+    otpUnsubscribe = null;
+  }
+  signupState.step = 2;
+  renderSignup();
 }
 
 /* =====================================================
@@ -3404,33 +3407,6 @@ function validatePassword(password){
   if(!/[0-9]/.test(password)) return "Password must have at least 1 number";
   if(!PASSWORD_SPECIAL_CHARS.test(password)) return "Password must have at least 1 special character";
   return null;
-}
-
-/* =====================================================
-                    06. FINISH SIGNUP
-===================================================== */
-function finishSignup(){
-  const pending = getPendingSignup();
-  if(!pending || pending.step !== 3){
-    renderSignup();
-    return;
-  }
-
-  const password = document.getElementById("signupPassword").value;
-  const passwordError = validatePassword(password);
-  if(passwordError){
-    showToast(passwordError);
-    return;
-  }
-
-  const accounts = getAccounts();
-  accounts.push({ email: pending.email, password: password });
-  saveAccounts(accounts);
-  savePendingSignup(null);
-
-  showToast("✅ បានចុះឈ្មោះ សូម Login");
-  switchAuthMode("login");
-  document.getElementById("loginEmail").value = pending.email;
 }
 
 /* =====================================================
@@ -4192,17 +4168,6 @@ function sendMessage(){
 
   saved[key].push({ text:text, mine:true });
   localStorage.setItem("chat_messages", JSON.stringify(saved));
-
-  if(currentChat && currentChat.name === "OTP Customer" && /^\d{6}$/.test(text)){
-    const pending = getPendingSignup();
-    if(pending && !pending.lockUntil){
-      pending.otp = text;
-      pending.otpSetAt = Date.now();
-      pending.expiresAt = Date.now() + 5 * 60000;
-      savePendingSignup(pending);
-      showToast("✅ OTP បានកំណត់សម្រាប់ " + pending.email);
-    }
-  }
 
   input.value = "";
   updateMessageButtons();
@@ -5191,7 +5156,8 @@ function openAdmin(section){
     statistics:"📊 Statistics",
     age:"🎂 Age Restriction",
     fonts:"🔤 Font Management",
-    notifications:"🔔 Notification Management"
+    notifications:"🔔 Notification Management",
+    otp:"🔐 OTP Customers"
   };
 
   document.getElementById("adminTitle").textContent = titles[section] || "👑 Owner";
@@ -5258,8 +5224,20 @@ function openAdmin(section){
     content = `<textarea id="adminNotifText" class="textarea" placeholder="Write notification..."></textarea><button class="primary" onclick="adminSendNotification()">🔔 Send Notification</button>`;
   }
 
+  if(section === "otp"){
+    content = `
+      <div id="otpOwnerGate">
+        <div class="card muted">⏳ Checking sign-in status...</div>
+      </div>
+    `;
+  }
+
   document.getElementById("adminContent").innerHTML = content;
   document.getElementById("adminModal").classList.add("show");
+
+  if(section === "otp"){
+    initOtpAdminPanel();
+  }
 }
 
 const adminReports = [];
@@ -5336,6 +5314,123 @@ function adminSendNotification(){
 }
 
 /* =====================================================
+                 25b. OTP CUSTOMERS (OWNER SIDE)
+===================================================== */
+let otpOwnerAuthUnsubscribe = null;
+let otpOwnerListUnsubscribe = null;
+
+function initOtpAdminPanel(){
+  const gate = document.getElementById("otpOwnerGate");
+  if(!gate) return;
+
+  if(!window.otpOwnerAuthState){
+    gate.innerHTML = `<div class="card muted">⚠️ OTP service not available.</div>`;
+    return;
+  }
+
+  if(otpOwnerAuthUnsubscribe){
+    otpOwnerAuthUnsubscribe();
+    otpOwnerAuthUnsubscribe = null;
+  }
+
+  otpOwnerAuthUnsubscribe = window.otpOwnerAuthState(function(state){
+    if(!document.getElementById("otpOwnerGate")) return;
+
+    if(state.signedIn){
+      renderOtpOwnerList();
+    }else{
+      renderOtpOwnerSignInPrompt(state.email);
+    }
+  });
+}
+
+function renderOtpOwnerSignInPrompt(currentEmail){
+  const gate = document.getElementById("otpOwnerGate");
+  if(!gate) return;
+
+  if(otpOwnerListUnsubscribe){
+    otpOwnerListUnsubscribe();
+    otpOwnerListUnsubscribe = null;
+  }
+
+  gate.innerHTML = `
+    <div class="card" style="text-align:center;">
+      <b>🔐 Google Sign-In required</b>
+      <p class="muted" style="margin-top:8px;">Sign in with the owner Google account (chauchung2007a@gmail.com) to view OTP requests.</p>
+      ${currentEmail ? `<p class="muted" style="font-size:12px;">Currently signed in as: ${currentEmail} (not the owner account)</p>` : ``}
+      <button class="primary" style="margin-top:10px;" onclick="otpAdminSignInClick()">Sign in with Google</button>
+    </div>
+  `;
+}
+
+function otpAdminSignInClick(){
+  if(!window.otpOwnerSignIn) return;
+  window.otpOwnerSignIn().then(function(result){
+    if(!result.success){
+      showToast("⚠️ Sign-in failed");
+    }
+    // onAuthStateChanged (already subscribed) will re-render automatically
+  });
+}
+
+function renderOtpOwnerList(){
+  const gate = document.getElementById("otpOwnerGate");
+  if(!gate) return;
+
+  gate.innerHTML = `<div id="otpOwnerList"><div class="card muted">⏳ Loading customers...</div></div>`;
+
+  if(otpOwnerListUnsubscribe){
+    otpOwnerListUnsubscribe();
+    otpOwnerListUnsubscribe = null;
+  }
+
+  otpOwnerListUnsubscribe = window.otpOwnerWatchAll(function(list, error){
+    const listBox = document.getElementById("otpOwnerList");
+    if(!listBox) return;
+
+    if(error){
+      listBox.innerHTML = `<div class="card muted">⚠️ ${error}</div>`;
+      return;
+    }
+
+    if(!list.length){
+      listBox.innerHTML = `<div class="card muted">No customers waiting yet.</div>`;
+      return;
+    }
+
+    listBox.innerHTML = list.map(item => `
+      <div class="card">
+        <b>${item.gmail}</b>
+        <p class="muted" style="margin:4px 0 8px; font-size:12px;">Status: ${item.status}</p>
+        <div style="display:flex; gap:8px;">
+          <input id="otpInput_${item.id}" class="input" style="margin-bottom:0;" placeholder="Type 6-digit OTP" maxlength="6" inputmode="numeric" value="${item.otp || ""}">
+          <button class="primary" style="width:auto; padding:0 16px;" onclick="otpAdminSaveCode('${item.id}')">Save</button>
+        </div>
+      </div>
+    `).join("");
+  });
+}
+
+function otpAdminSaveCode(docId){
+  const input = document.getElementById("otpInput_" + docId);
+  if(!input) return;
+
+  const code = input.value.trim();
+  if(!/^\d{6}$/.test(code)){
+    showToast("OTP must be exactly 6 digits");
+    return;
+  }
+
+  window.otpOwnerSetCode(docId, code).then(function(result){
+    if(result.success){
+      showToast("✅ OTP saved — now send it to the customer's Gmail yourself");
+    }else{
+      showToast("⚠️ " + (result.message || "Could not save OTP"));
+    }
+  });
+}
+
+/* =====================================================
                     25. AGE SETTINGS
 ===================================================== */
 function updateAgeSetting(){
@@ -5368,6 +5463,10 @@ function saveAgeSetting(){
 ===================================================== */
 function closeModal(id){
   document.getElementById(id).classList.remove("show");
+  if(id === "adminModal"){
+    if(otpOwnerAuthUnsubscribe){ otpOwnerAuthUnsubscribe(); otpOwnerAuthUnsubscribe = null; }
+    if(otpOwnerListUnsubscribe){ otpOwnerListUnsubscribe(); otpOwnerListUnsubscribe = null; }
+  }
 }
 
 /* =====================================================
@@ -5472,6 +5571,110 @@ if(localStorage.getItem("chat_user")){
   enterApp();
 }
 
+</script>
+
+<!-- =====================================================
+     FIREBASE — Step 2 (Email OTP relay) — App + Firestore + Auth only
+===================================================== -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+  import {
+    getFirestore, collection, addDoc, doc, onSnapshot, updateDoc,
+    serverTimestamp, Timestamp
+  } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+  import {
+    getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged
+  } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDuxcN49FWR_01A4SGxA8vAXE4z1vy4NUs",
+    authDomain: "bird-c751a.firebaseapp.com",
+    projectId: "bird-c751a",
+    storageBucket: "bird-c751a.firebasestorage.app",
+    messagingSenderId: "97337574813",
+    appId: "1:97337574813:web:5be4b8883c9bb0288ddb74"
+    // measurementId intentionally omitted — Analytics is not used
+  };
+
+  const firebaseApp = initializeApp(firebaseConfig);
+  const db = getFirestore(firebaseApp);
+  const auth = getAuth(firebaseApp);
+  const OWNER_GOOGLE_EMAIL = "chauchung2007a@gmail.com";
+
+  window.otpCreateCustomerDoc = async function(gmail){
+    const docRef = await addDoc(collection(db, "otpCustomers"), {
+      gmail: gmail,
+      otp: null,
+      status: "waiting",
+      attempts: 0,
+      createdAt: serverTimestamp(),
+      otpSetAt: null,
+      expiresAt: null
+    });
+    return docRef.id;
+  };
+
+  window.otpWatchDoc = function(docId, callback){
+    const ref = doc(db, "otpCustomers", docId);
+    return onSnapshot(
+      ref,
+      (snap) => callback(snap.exists() ? snap.data() : null),
+      (error) => callback(null, error.message)
+    );
+  };
+
+  window.otpOwnerSignIn = async function(){
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ login_hint: OWNER_GOOGLE_EMAIL });
+    try{
+      const result = await signInWithPopup(auth, provider);
+      return { success: true, email: result.user.email };
+    }catch(error){
+      return { success: false, message: error.message };
+    }
+  };
+
+  window.otpOwnerAuthState = function(callback){
+    return onAuthStateChanged(auth, (user) => {
+      callback({
+        signedIn: !!(user && user.email === OWNER_GOOGLE_EMAIL),
+        email: user ? user.email : null
+      });
+    });
+  };
+
+  window.otpOwnerWatchAll = function(callback){
+    return onSnapshot(
+      collection(db, "otpCustomers"),
+      (snapshot) => {
+        const list = [];
+        snapshot.forEach((docSnap) => list.push({ id: docSnap.id, ...docSnap.data() }));
+        list.sort((a, b) => {
+          const aTime = (a.createdAt && a.createdAt.toMillis) ? a.createdAt.toMillis() : 0;
+          const bTime = (b.createdAt && b.createdAt.toMillis) ? b.createdAt.toMillis() : 0;
+          return bTime - aTime;
+        });
+        callback(list);
+      },
+      (error) => callback([], error.message)
+    );
+  };
+
+  window.otpOwnerSetCode = async function(docId, otpValue){
+    try{
+      const ref = doc(db, "otpCustomers", docId);
+      const now = Date.now();
+      await updateDoc(ref, {
+        otp: otpValue,
+        status: "otp_sent",
+        otpSetAt: Timestamp.fromMillis(now),
+        expiresAt: Timestamp.fromMillis(now + 5 * 60000)
+      });
+      return { success: true };
+    }catch(error){
+      return { success: false, message: error.message };
+    }
+  };
 </script>
 </body>
 </html>
