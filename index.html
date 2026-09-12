@@ -3009,7 +3009,11 @@ body.dark .modalBox{
 /* =====================================================
         TEMPORARY DIAGNOSTIC — REMOVE AFTER DEBUGGING
 ===================================================== */
-window.__otpDiag = { moduleLoaded: false, error: null, scriptLoadError: null };
+window.__otpDiag = {
+  moduleLoaded: false, error: null, scriptLoadError: null,
+  currentStep: null, step3BranchRan: false, otpBoxExistsAfterInsert: null,
+  renderOtpCalled: false, otpBoxExistsAtRenderTime: null
+};
 
 window.addEventListener("error", function(e){
   if(e && e.target && e.target.tagName === "SCRIPT" && e.target.src && e.target.src.indexOf("firebasejs") !== -1){
@@ -3025,11 +3029,22 @@ function updateFirebaseDiagBanner(){
   var moduleStatus = diag.moduleLoaded ? "✅ Loaded" : "❌ Not loaded";
   var fnStatus = (typeof window.otpCreateCustomerDoc === "function") ? "✅ Exists" : "❌ Missing";
   var errorText = diag.scriptLoadError || diag.error || "None";
+  var stepText = (diag.currentStep === null || diag.currentStep === undefined) ? "N/A" : String(diag.currentStep);
+  var step3RanText = diag.step3BranchRan ? "✅ Yes" : "❌ No";
+  var boxAfterInsertText = (diag.otpBoxExistsAfterInsert === null) ? "N/A" : (diag.otpBoxExistsAfterInsert ? "✅ Yes" : "❌ No");
+  var renderCalledText = diag.renderOtpCalled ? "✅ Yes" : "❌ No";
+  var boxAtRenderText = (diag.otpBoxExistsAtRenderTime === null) ? "N/A" : (diag.otpBoxExistsAtRenderTime ? "✅ Yes" : "❌ No");
   el.innerHTML =
     "⚠️ TEMPORARY DIAGNOSTIC (remove later)<br>" +
     "Firebase module: " + moduleStatus + "<br>" +
     "window.otpCreateCustomerDoc: " + fnStatus + "<br>" +
-    "Error: " + errorText;
+    "Error: " + errorText + "<br>" +
+    "--- Step 3 flow ---<br>" +
+    "Current signupState.step: " + stepText + "<br>" +
+    "Step 3 branch ran: " + step3RanText + "<br>" +
+    "#otpStep3Box exists after insert: " + boxAfterInsertText + "<br>" +
+    "renderOtpStep3Content() called: " + renderCalledText + "<br>" +
+    "#otpStep3Box exists at render time: " + boxAtRenderText;
 }
 
 /* =====================================================
@@ -3145,6 +3160,10 @@ function authTabsHTML(isLogin){
 }
 
 function renderSignup(){
+  window.__otpDiag = window.__otpDiag || {};
+  window.__otpDiag.currentStep = signupState.step;
+  updateFirebaseDiagBanner();
+
   const subtitle = document.getElementById("signupSubtitle");
   if(subtitle){
     subtitle.textContent = authMode === "login" ? "Log in to your account" : "Create your account";
@@ -3209,6 +3228,12 @@ function renderSignup(){
       <div id="otpStep3Box" style="margin-top:14px;"></div>
       <button class="secondary" onclick="goBackToPasswordStep()">↩️ ត្រឡប់</button>
     `;
+
+    /* TEMPORARY DIAGNOSTIC — REMOVE LATER */
+    window.__otpDiag.step3BranchRan = true;
+    window.__otpDiag.otpBoxExistsAfterInsert = !!document.getElementById("otpStep3Box");
+    updateFirebaseDiagBanner();
+
     startOtpWatch();
     renderOtpStep3Content();
     return;
@@ -3312,7 +3337,12 @@ function startOtpWatch(){
 }
 
 function renderOtpStep3Content(){
+  /* TEMPORARY DIAGNOSTIC — REMOVE LATER */
+  window.__otpDiag.renderOtpCalled = true;
   const box = document.getElementById("otpStep3Box");
+  window.__otpDiag.otpBoxExistsAtRenderTime = !!box;
+  updateFirebaseDiagBanner();
+
   if(!box) return;
 
   const data = otpCurrentDocData;
