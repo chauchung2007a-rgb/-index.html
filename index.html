@@ -2831,6 +2831,7 @@ body.dark .modalBox{
       <h1 id="signupBrandTitle">𝑪𝒉𝒂𝒕𝒔</h1>
       <p id="signupSubtitle" class="muted">Create your account</p>
     </div>
+    <div id="tempFirebaseDiagBanner" style="background:#fff3cd; border:2px dashed #cc9900; border-radius:8px; padding:8px 10px; margin-bottom:12px; font-size:12px; line-height:1.5; color:#5a4500; font-family:monospace;"></div>
     <div id="signupContent"></div>
   </div>
 </div>
@@ -3006,6 +3007,32 @@ body.dark .modalBox{
 
 <script>
 /* =====================================================
+        TEMPORARY DIAGNOSTIC — REMOVE AFTER DEBUGGING
+===================================================== */
+window.__otpDiag = { moduleLoaded: false, error: null, scriptLoadError: null };
+
+window.addEventListener("error", function(e){
+  if(e && e.target && e.target.tagName === "SCRIPT" && e.target.src && e.target.src.indexOf("firebasejs") !== -1){
+    window.__otpDiag.scriptLoadError = "Failed to load: " + e.target.src;
+    updateFirebaseDiagBanner();
+  }
+}, true);
+
+function updateFirebaseDiagBanner(){
+  var el = document.getElementById("tempFirebaseDiagBanner");
+  if(!el) return;
+  var diag = window.__otpDiag || {};
+  var moduleStatus = diag.moduleLoaded ? "✅ Loaded" : "❌ Not loaded";
+  var fnStatus = (typeof window.otpCreateCustomerDoc === "function") ? "✅ Exists" : "❌ Missing";
+  var errorText = diag.scriptLoadError || diag.error || "None";
+  el.innerHTML =
+    "⚠️ TEMPORARY DIAGNOSTIC (remove later)<br>" +
+    "Firebase module: " + moduleStatus + "<br>" +
+    "window.otpCreateCustomerDoc: " + fnStatus + "<br>" +
+    "Error: " + errorText;
+}
+
+/* =====================================================
                      01. CONFIG
 ===================================================== */
 let OWNER_EMAIL = localStorage.getItem("chat_owner_email") || "chauchung2007a@gmail.com";
@@ -3100,6 +3127,10 @@ let signupState = { step: 1, email: "" };
 
 function switchAuthMode(mode){
   if(mode === authMode) return;
+  if(otpUnsubscribe){
+    otpUnsubscribe();
+    otpUnsubscribe = null;
+  }
   authMode = mode;
   renderSignup();
 }
@@ -5566,6 +5597,8 @@ loadSettings();
 loadNewsFromStorage();
 applyAppCustomization();
 renderSignup();
+updateFirebaseDiagBanner();
+setTimeout(updateFirebaseDiagBanner, 3000);
 
 if(localStorage.getItem("chat_user")){
   enterApp();
@@ -5596,85 +5629,96 @@ if(localStorage.getItem("chat_user")){
     // measurementId intentionally omitted — Analytics is not used
   };
 
-  const firebaseApp = initializeApp(firebaseConfig);
-  const db = getFirestore(firebaseApp);
-  const auth = getAuth(firebaseApp);
-  const OWNER_GOOGLE_EMAIL = "chauchung2007a@gmail.com";
+  try{
+    const firebaseApp = initializeApp(firebaseConfig);
+    const db = getFirestore(firebaseApp);
+    const auth = getAuth(firebaseApp);
+    const OWNER_GOOGLE_EMAIL = "chauchung2007a@gmail.com";
 
-  window.otpCreateCustomerDoc = async function(gmail){
-    const docRef = await addDoc(collection(db, "otpCustomers"), {
-      gmail: gmail,
-      otp: null,
-      status: "waiting",
-      attempts: 0,
-      createdAt: serverTimestamp(),
-      otpSetAt: null,
-      expiresAt: null
-    });
-    return docRef.id;
-  };
-
-  window.otpWatchDoc = function(docId, callback){
-    const ref = doc(db, "otpCustomers", docId);
-    return onSnapshot(
-      ref,
-      (snap) => callback(snap.exists() ? snap.data() : null),
-      (error) => callback(null, error.message)
-    );
-  };
-
-  window.otpOwnerSignIn = async function(){
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ login_hint: OWNER_GOOGLE_EMAIL });
-    try{
-      const result = await signInWithPopup(auth, provider);
-      return { success: true, email: result.user.email };
-    }catch(error){
-      return { success: false, message: error.message };
-    }
-  };
-
-  window.otpOwnerAuthState = function(callback){
-    return onAuthStateChanged(auth, (user) => {
-      callback({
-        signedIn: !!(user && user.email === OWNER_GOOGLE_EMAIL),
-        email: user ? user.email : null
+    window.otpCreateCustomerDoc = async function(gmail){
+      const docRef = await addDoc(collection(db, "otpCustomers"), {
+        gmail: gmail,
+        otp: null,
+        status: "waiting",
+        attempts: 0,
+        createdAt: serverTimestamp(),
+        otpSetAt: null,
+        expiresAt: null
       });
-    });
-  };
+      return docRef.id;
+    };
 
-  window.otpOwnerWatchAll = function(callback){
-    return onSnapshot(
-      collection(db, "otpCustomers"),
-      (snapshot) => {
-        const list = [];
-        snapshot.forEach((docSnap) => list.push({ id: docSnap.id, ...docSnap.data() }));
-        list.sort((a, b) => {
-          const aTime = (a.createdAt && a.createdAt.toMillis) ? a.createdAt.toMillis() : 0;
-          const bTime = (b.createdAt && b.createdAt.toMillis) ? b.createdAt.toMillis() : 0;
-          return bTime - aTime;
-        });
-        callback(list);
-      },
-      (error) => callback([], error.message)
-    );
-  };
-
-  window.otpOwnerSetCode = async function(docId, otpValue){
-    try{
+    window.otpWatchDoc = function(docId, callback){
       const ref = doc(db, "otpCustomers", docId);
-      const now = Date.now();
-      await updateDoc(ref, {
-        otp: otpValue,
-        status: "otp_sent",
-        otpSetAt: Timestamp.fromMillis(now),
-        expiresAt: Timestamp.fromMillis(now + 5 * 60000)
+      return onSnapshot(
+        ref,
+        (snap) => callback(snap.exists() ? snap.data() : null),
+        (error) => callback(null, error.message)
+      );
+    };
+
+    window.otpOwnerSignIn = async function(){
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ login_hint: OWNER_GOOGLE_EMAIL });
+      try{
+        const result = await signInWithPopup(auth, provider);
+        return { success: true, email: result.user.email };
+      }catch(error){
+        return { success: false, message: error.message };
+      }
+    };
+
+    window.otpOwnerAuthState = function(callback){
+      return onAuthStateChanged(auth, (user) => {
+        callback({
+          signedIn: !!(user && user.email === OWNER_GOOGLE_EMAIL),
+          email: user ? user.email : null
+        });
       });
-      return { success: true };
-    }catch(error){
-      return { success: false, message: error.message };
-    }
-  };
+    };
+
+    window.otpOwnerWatchAll = function(callback){
+      return onSnapshot(
+        collection(db, "otpCustomers"),
+        (snapshot) => {
+          const list = [];
+          snapshot.forEach((docSnap) => list.push({ id: docSnap.id, ...docSnap.data() }));
+          list.sort((a, b) => {
+            const aTime = (a.createdAt && a.createdAt.toMillis) ? a.createdAt.toMillis() : 0;
+            const bTime = (b.createdAt && b.createdAt.toMillis) ? b.createdAt.toMillis() : 0;
+            return bTime - aTime;
+          });
+          callback(list);
+        },
+        (error) => callback([], error.message)
+      );
+    };
+
+    window.otpOwnerSetCode = async function(docId, otpValue){
+      try{
+        const ref = doc(db, "otpCustomers", docId);
+        const now = Date.now();
+        await updateDoc(ref, {
+          otp: otpValue,
+          status: "otp_sent",
+          otpSetAt: Timestamp.fromMillis(now),
+          expiresAt: Timestamp.fromMillis(now + 5 * 60000)
+        });
+        return { success: true };
+      }catch(error){
+        return { success: false, message: error.message };
+      }
+    };
+
+    /* TEMPORARY DIAGNOSTIC — REMOVE LATER */
+    window.__otpDiag.moduleLoaded = true;
+    if(window.updateFirebaseDiagBanner) window.updateFirebaseDiagBanner();
+  }catch(error){
+    /* TEMPORARY DIAGNOSTIC — REMOVE LATER */
+    window.__otpDiag = window.__otpDiag || {};
+    window.__otpDiag.error = error && error.message ? error.message : String(error);
+    if(window.updateFirebaseDiagBanner) window.updateFirebaseDiagBanner();
+  }
 </script>
 </body>
 </html>
