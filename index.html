@@ -3012,7 +3012,9 @@ body.dark .modalBox{
 window.__otpDiag = {
   moduleLoaded: false, error: null, scriptLoadError: null,
   currentStep: null, step3BranchRan: false, otpBoxExistsAfterInsert: null,
-  renderOtpCalled: false, otpBoxExistsAtRenderTime: null
+  renderOtpCalled: false, otpBoxExistsAtRenderTime: null,
+  step1ButtonClicked: false, step2FunctionCalled: false,
+  step1EmailReceived: null, step1ValidationResult: null
 };
 
 window.addEventListener("error", function(e){
@@ -3044,7 +3046,12 @@ function updateFirebaseDiagBanner(){
     "Step 3 branch ran: " + step3RanText + "<br>" +
     "#otpStep3Box exists after insert: " + boxAfterInsertText + "<br>" +
     "renderOtpStep3Content() called: " + renderCalledText + "<br>" +
-    "#otpStep3Box exists at render time: " + boxAtRenderText;
+    "#otpStep3Box exists at render time: " + boxAtRenderText + "<br>" +
+    "--- Step 1 Next button ---<br>" +
+    "First Next button clicked: " + (diag.step1ButtonClicked ? "✅ Yes" : "❌ No") + "<br>" +
+    "goToSignupStep2() called: " + (diag.step2FunctionCalled ? "✅ Yes" : "❌ No") + "<br>" +
+    "Email value received: " + (diag.step1EmailReceived === null ? "N/A" : "\"" + diag.step1EmailReceived + "\"") + "<br>" +
+    "Validation result: " + (diag.step1ValidationResult || "N/A");
 }
 
 /* =====================================================
@@ -3194,7 +3201,7 @@ function renderSignup(){
         <span class="signupFieldIcon">📧</span>
         <input id="signupEmail" class="input signupInput" placeholder="Gmail" autocomplete="off" value="${signupState.email || ""}">
       </div>
-      <button class="primary" onclick="goToSignupStep2()">បន្ទាប់</button>
+      <button class="primary" onclick="window.__otpDiag.step1ButtonClicked=true; updateFirebaseDiagBanner(); goToSignupStep2();">បន្ទាប់</button>
     `;
     return;
   }
@@ -3258,24 +3265,38 @@ function goToSignupStep1(){
 }
 
 function goToSignupStep2(){
+  /* TEMPORARY DIAGNOSTIC — REMOVE LATER */
+  window.__otpDiag.step2FunctionCalled = true;
+  updateFirebaseDiagBanner();
+
   const email = document.getElementById("signupEmail").value.trim();
+  window.__otpDiag.step1EmailReceived = email;
 
   if(!email){
+    window.__otpDiag.step1ValidationResult = "FAILED — Email is required";
+    updateFirebaseDiagBanner();
     showToast("Email is required");
     return;
   }
 
   const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if(!emailPattern.test(email)){
+    window.__otpDiag.step1ValidationResult = "FAILED — Please enter a valid email";
+    updateFirebaseDiagBanner();
     showToast("Please enter a valid email");
     return;
   }
 
   const accounts = getAccounts();
   if(accounts.some(a => a.email.toLowerCase() === email.toLowerCase()) || email.toLowerCase() === OWNER_EMAIL.toLowerCase()){
+    window.__otpDiag.step1ValidationResult = "FAILED — This email is already registered";
+    updateFirebaseDiagBanner();
     showToast("This email is already registered");
     return;
   }
+
+  window.__otpDiag.step1ValidationResult = "✅ Passed";
+  updateFirebaseDiagBanner();
 
   signupState.email = email;
   signupState.step = 2;
