@@ -3147,6 +3147,18 @@ let authMode = getAccounts().length ? "login" : "signup";
 let pendingOwnerLogin = null;
 let signupState = { step: 1, email: "" };
 
+/* =====================================================
+   FORGOT PASSWORD — MVP/PROTOTYPE ONLY.
+   Verification happens client-side (comparing the code the
+   owner typed in Firestore against what the customer enters
+   in their own browser). This is NOT production-grade OTP
+   security — same accepted limitation as Signup Step 3.
+===================================================== */
+let forgotPasswordMode = false;
+let forgotPasswordState = { step: 1, email: "" };
+let resetOtpUnsubscribe = null;
+let resetCurrentDocData = null;
+
 function switchAuthMode(mode){
   if(mode === authMode) return;
   if(otpUnsubscribe){
@@ -3171,6 +3183,11 @@ function renderSignup(){
   window.__otpDiag.currentStep = signupState.step;
   updateFirebaseDiagBanner();
 
+  if(forgotPasswordMode){
+    renderForgotPassword();
+    return;
+  }
+
   const subtitle = document.getElementById("signupSubtitle");
   if(subtitle){
     subtitle.textContent = authMode === "login" ? "Log in to your account" : "Create your account";
@@ -3190,6 +3207,7 @@ function renderSignup(){
         <input id="loginPassword" class="input signupInput" type="password" placeholder="Password" autocomplete="off" onkeydown="if(event.key==='Enter'){finishLogin();}">
       </div>
       <button class="primary" onclick="finishLogin()">➜ ចូល</button>
+      <p class="muted" style="text-align:center; margin-top:10px; cursor:pointer; text-decoration:underline;" onclick="openForgotPassword()">ភ្លេចពាក្យសម្ងាត់?</p>
     `;
     return;
   }
@@ -3474,6 +3492,292 @@ function goBackToPasswordStep(){
     otpUnsubscribe = null;
   }
   signupState.step = 2;
+  renderSignup();
+}
+
+/* =====================================================
+   06c. FORGOT PASSWORD — MVP/PROTOTYPE ONLY
+   Reuses the exact same Firestore "otpCustomers" relay and
+   owner inbox as Signup Step 3. Verification is client-side
+   (comparing the code the owner typed against what the
+   customer enters) — NOT production-grade OTP security,
+   same accepted limitation as Signup Step 3.
+===================================================== */
+function openForgotPassword(){
+  forgotPasswordMode = true;
+  forgotPasswordState = { step: 1, email: "" };
+  renderSignup();
+}
+
+function backToLoginFromReset(){
+  if(resetOtpUnsubscribe){
+    resetOtpUnsubscribe();
+    resetOtpUnsubscribe = null;
+  }
+  sessionStorage.removeItem("reset_doc_id");
+  forgotPasswordMode = false;
+  forgotPasswordState = { step: 1, email: "" };
+  resetCurrentDocData = null;
+  renderSignup();
+}
+
+function renderForgotPassword(){
+  const subtitle = document.getElementById("signupSubtitle");
+  if(subtitle){
+    subtitle.textContent = "Reset your password";
+  }
+
+  if(forgotPasswordState.step === 1){
+    document.getElementById("signupContent").innerHTML = `
+      <p class="muted" style="text-align:center; margin-bottom:10px;">សូមបញ្ចូល Gmail គណនីរបស់អ្នក</p>
+      <div class="signupField">
+        <span class="signupFieldIcon">📧</span>
+        <input id="resetEmail" class="input signupInput" placeholder="Gmail" autocomplete="off">
+      </div>
+      <button class="primary" onclick="submitResetRequest()">ស្នើសុំលេខកូដ</button>
+      <button class="secondary" onclick="backToLoginFromReset()">↩️ ត្រឡប់ទៅ Login</button>
+    `;
+    return;
+  }
+
+  if(forgotPasswordState.step === 2){
+    document.getElementById("signupContent").innerHTML = `
+      <p class="muted" style="text-align:center; margin-top:6px;">Gmail: <b>${forgotPasswordState.email}</b></p>
+      <p class="muted" style="text-align:center; font-size:13px;">ម្ចាស់ App នឹងផ្ញើលេខកូដ ៦ ខ្ទង់ទៅ Gmail នេះដោយផ្ទាល់</p>
+      <div id="resetOtpBox" style="margin-top:14px;"></div>
+      <button class="secondary" onclick="backToLoginFromReset()">↩️ ត្រឡប់ទៅ Login</button>
+    `;
+    startResetOtpWatch();
+    renderResetOtpContent();
+    return;
+  }
+
+  if(forgotPasswordState.step === 3){
+    document.getElementById("signupContent").innerHTML = `
+      <p class="muted" style="text-align:center; margin-bottom:10px;">កំណត់ពាក្យសម្ងាត់ថ្មី</p>
+      <div class="signupField">
+        <span class="signupFieldIcon">🔒</span>
+        <input id="resetNewPassword" class="input signupInput" type="password" placeholder="New Password" autocomplete="off">
+      </div>
+      <div class="signupField">
+        <span class="signupFieldIcon">🔒</span>
+        <input id="resetConfirmPassword" class="input signupInput" type="password" placeholder="Confirm New Password" autocomplete="off">
+      </div>
+      <button class="primary" onclick="finishPasswordReset()">💾 រក្សាទុក</button>
+    `;
+    return;
+  }
+}
+
+function submitResetRequest(){
+  const email = document.getElementById("resetEmail").value.trim();
+
+  if(!email){
+    showToast("សូមបញ្ចូល Gmail");
+    return;
+  }
+
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if(!emailPattern.test(email)){
+    showToast("សូមបញ្ចូល Gmail ត្រឹមត្រូវ");
+    return;
+  }
+
+  const accounts = getAccounts();
+  const accountExists = accounts.some(a => a.email.toLowerCase() === email.toLowerCase());
+  if(!accountExists){
+    showToast("No account found with this Gmail");
+    return;
+  }
+
+  const cooldownKey = "reset_cooldown_" + email.toLowerCase();
+  const lastRequest = parseInt(localStorage.getItem(cooldownKey) || "0", 10);
+  const now = Date.now();
+  if(now - lastRequest < 60000){
+    const remain = Math.ceil((60000 - (now - lastRequest)) / 1000);
+    showToast("សូមរង់ចាំ " + remain + " វិនាទីមុននឹងស្នើសុំម្ដងទៀត");
+    return;
+  }
+
+  if(!window.otpCreateCustomerDoc){
+    showToast("⚠️ Could not reach OTP service");
+    return;
+  }
+
+  window.otpCreateCustomerDoc(email).then(function(docId){
+    localStorage.setItem(cooldownKey, String(Date.now()));
+    sessionStorage.setItem("reset_doc_id", docId);
+    sessionStorage.removeItem("reset_attempts_" + docId);
+    forgotPasswordState.email = email;
+    forgotPasswordState.step = 2;
+    renderSignup();
+  }).catch(function(){
+    showToast("⚠️ Could not reach OTP service");
+  });
+}
+
+function startResetOtpWatch(){
+  if(resetOtpUnsubscribe){
+    resetOtpUnsubscribe();
+    resetOtpUnsubscribe = null;
+  }
+
+  const docId = sessionStorage.getItem("reset_doc_id");
+  if(!docId || !window.otpWatchDoc) return;
+
+  resetOtpUnsubscribe = window.otpWatchDoc(docId, function(data){
+    resetCurrentDocData = data;
+    renderResetOtpContent();
+  });
+}
+
+function renderResetOtpContent(){
+  const box = document.getElementById("resetOtpBox");
+  if(!box) return;
+
+  const data = resetCurrentDocData;
+
+  if(!data){
+    box.innerHTML = `<p class="muted" style="text-align:center;">⏳ Connecting...</p>`;
+    return;
+  }
+
+  if(data.status === "waiting"){
+    box.innerHTML = `
+      <p class="muted" style="text-align:center;">⏳ កំពុងរង់ចាំលេខកូដ...</p>
+      <button class="secondary" onclick="resendResetOtp()" style="margin-top:8px;">🔄 ស្នើសុំម្ដងទៀត</button>
+    `;
+    return;
+  }
+
+  if(data.status === "otp_sent"){
+    box.innerHTML = `
+      <div class="signupField">
+        <span class="signupFieldIcon">🔢</span>
+        <input id="resetOtpInput" class="input signupInput" placeholder="OTP 6 ខ្ទង់" maxlength="6" inputmode="numeric" autocomplete="off">
+      </div>
+      <button class="primary" onclick="verifyResetCode()">បញ្ជាក់</button>
+      <button class="secondary" onclick="resendResetOtp()">🔄 ស្នើសុំម្ដងទៀត</button>
+    `;
+    return;
+  }
+}
+
+function verifyResetCode(){
+  const data = resetCurrentDocData;
+  const docId = sessionStorage.getItem("reset_doc_id");
+  const input = document.getElementById("resetOtpInput");
+
+  if(!data || !data.otp || !input){
+    showToast("OTP not ready yet");
+    return;
+  }
+
+  const attemptsKey = "reset_attempts_" + docId;
+  let attempts = parseInt(sessionStorage.getItem(attemptsKey) || "0", 10);
+
+  if(attempts >= 3){
+    showToast("ព្យាយាមច្រើនដងពេក សូមស្នើសុំលេខកូដថ្មី");
+    return;
+  }
+
+  const expiresMs = (data.expiresAt && data.expiresAt.toMillis) ? data.expiresAt.toMillis() : 0;
+  if(Date.now() > expiresMs){
+    showToast("លេខកូដផុតកំណត់ សូមស្នើសុំម្ដងទៀត");
+    return;
+  }
+
+  const entered = input.value.trim();
+
+  if(entered !== data.otp){
+    attempts += 1;
+    sessionStorage.setItem(attemptsKey, String(attempts));
+    showToast("លេខកូដមិនត្រឹមត្រូវ");
+    return;
+  }
+
+  if(resetOtpUnsubscribe){
+    resetOtpUnsubscribe();
+    resetOtpUnsubscribe = null;
+  }
+  sessionStorage.removeItem(attemptsKey);
+
+  forgotPasswordState.step = 3;
+  renderSignup();
+}
+
+function resendResetOtp(){
+  if(!window.otpCreateCustomerDoc) return;
+
+  const email = forgotPasswordState.email;
+  const cooldownKey = "reset_cooldown_" + email.toLowerCase();
+  const lastRequest = parseInt(localStorage.getItem(cooldownKey) || "0", 10);
+  const now = Date.now();
+  if(now - lastRequest < 60000){
+    const remain = Math.ceil((60000 - (now - lastRequest)) / 1000);
+    showToast("សូមរង់ចាំ " + remain + " វិនាទីមុននឹងស្នើសុំម្ដងទៀត");
+    return;
+  }
+
+  if(resetOtpUnsubscribe){
+    resetOtpUnsubscribe();
+    resetOtpUnsubscribe = null;
+  }
+
+  const oldDocId = sessionStorage.getItem("reset_doc_id");
+  if(oldDocId){
+    sessionStorage.removeItem("reset_attempts_" + oldDocId);
+  }
+
+  window.otpCreateCustomerDoc(email).then(function(docId){
+    localStorage.setItem(cooldownKey, String(Date.now()));
+    sessionStorage.setItem("reset_doc_id", docId);
+    resetCurrentDocData = null;
+    renderResetOtpContent();
+    startResetOtpWatch();
+    showToast("🔄 បានស្នើសុំលេខកូដម្ដងទៀត");
+  }).catch(function(){
+    showToast("⚠️ Could not reach OTP service");
+  });
+}
+
+function finishPasswordReset(){
+  const newPassword = document.getElementById("resetNewPassword").value;
+  const confirmPassword = document.getElementById("resetConfirmPassword").value;
+
+  const passwordError = validatePassword(newPassword);
+  if(passwordError){
+    showToast(passwordError);
+    return;
+  }
+
+  if(!confirmPassword){
+    showToast("Confirm Password is required");
+    return;
+  }
+
+  if(newPassword !== confirmPassword){
+    showToast("Passwords do not match");
+    return;
+  }
+
+  const accounts = getAccounts();
+  const account = accounts.find(a => a.email.toLowerCase() === forgotPasswordState.email.toLowerCase());
+  if(!account){
+    showToast("⚠️ Account not found");
+    return;
+  }
+
+  account.password = newPassword;
+  saveAccounts(accounts);
+
+  sessionStorage.removeItem("reset_doc_id");
+  forgotPasswordMode = false;
+  forgotPasswordState = { step: 1, email: "" };
+  resetCurrentDocData = null;
+
+  showToast("✅ Password reset successful");
+  authMode = "login";
   renderSignup();
 }
 
